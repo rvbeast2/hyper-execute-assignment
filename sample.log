@@ -1,0 +1,6 @@
+INFO: Test1 started
+FAIL: Test1 assertion mismatch
+INFO: Test2 started
+ERROR: Test2 timeout
+INFO: Test3 started
+PASS: Test3 completed

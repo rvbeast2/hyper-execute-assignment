@@ -5,6 +5,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.HashMap;
 
+import org.testng.Assert;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -35,6 +36,7 @@ public class Test1 {
     public static String status = "passed";
     public static String username = System.getenv("LT_USERNAME");
     public static String access_key = System.getenv("LT_ACCESS_KEY");
+    public static String environment = System.getenv("ENVIRONMENT");
 
     ExtentSparkReporter spark = new ExtentSparkReporter("target/surefire-reports/html/extentReport.html");
     JsonFormatter json = new JsonFormatter("target/surefire-reports/json/Extent_Report.json");
@@ -96,6 +98,7 @@ public class Test1 {
             System.out.println("Invalid grid URL");
         }
         System.out.println("Started session");
+        System.out.println("ENVIRONMENT value from test: " + environment);
     }
 
     @Test(description = "To Do App on React App")
@@ -155,7 +158,10 @@ public class Test1 {
 
         /* Once you are outside this code, the list would be empty */
     }
-
+    @Test(description = "Intentional failure to verify retry behavior")
+    public void test1_intentional_failure() {
+        Assert.fail("Intentional failure to verify retry behavior");
+}
     @Test(description = "To Do App on React App")
     public void test1_element_addition_2() throws InterruptedException, IOException {
         ExtentTest test2 = extent.createTest("demo application test 1-2", "To Do App test 2");
