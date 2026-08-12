@@ -1,121 +1,123 @@
-# Run Selenium Tests with TestNG on HyperExecute by TestMu AI (Formerly LambdaTest)
+# HyperExecute Assignment — Submission Notes
 
-<p align="center">
-  <a href="https://www.testmuai.com/"><img src="https://img.shields.io/badge/MADE%20BY%20TestMu%20AI-000000.svg?style=for-the-badge&labelColor=000" alt="Made by TestMu AI"></a>
-  <a href="https://search.maven.org/artifact/org.testng/testng"><img src="https://img.shields.io/maven-central/v/org.testng/testng.svg?style=for-the-badge&labelColor=000000" alt="TestNG version"></a>
-  <a href="https://community.testmuai.com/"><img src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&labelColor=000000" alt="Community"></a>
-</p>
+## Task 1: Fixed the broken YAML
 
-## Getting Started
+I compared the broken YAML against LambdaTest's own working reference file in the sample repo (`yaml/win/v1/testng_hyperexecute_autosplit_sample.yaml`) to confirm each fix against a known-correct baseline rather than guessing.
 
-[TestMu AI](https://www.testmuai.com/) (Formerly LambdaTest) is the world's first full-stack AI Agentic Quality Engineering platform that empowers teams to test intelligently, smarter, and ship faster. Built for scale, it offers a full-stack testing cloud with 10K+ real devices and 3,000+ browsers. With AI-native test management, MCP servers, and agent-based automation, TestMu AI supports Selenium, Appium, Playwright, and all major frameworks. 
+**Bugs found:**
 
-With TestMu AI (Formerly LambdaTest), you can run Java TestNG Selenium tests at scale using HyperExecute smart test orchestration. This sample shows how to configure Java + TestNG with HyperExecute to run on the TestMu AI cloud.
+1. **`conCurrency: 1` → `concurrency: 1`** — YAML keys are case-sensitive. `conCurrency` isn't a recognized HyperExecute parameter, so it was silently ignored, meaning the intended concurrency setting never actually applied.
 
-- [Sign up on TestMu AI](https://www.testmuai.com/register/) (Formerly LambdaTest).
-- Follow the [TestMu AI Documentation](https://www.testmuai.com/support/docs/) for the full setup walkthrough.
-
-### Prerequisites
-
-- Java JDK 11 or higher, Maven (latest stable). Download the HyperExecute CLI from https://downloads.lambdatest.com/hyperexecute/
-- A TestMu AI (Formerly LambdaTest) account with your username and access key
-
-### Setup
-
-Clone and install dependencies:
-
-```bash
-git clone https://github.com/LambdaTest/testng-selenium-hyperexecute-sample && cd testng-selenium-hyperexecute-sample
-mvn -Dmaven.test.skip=true clean install
-```
-
-Set your credentials as environment variables.
-
-**macOS / Linux:**
-
-```bash
-export LT_USERNAME="YOUR_USERNAME"
-export LT_ACCESS_KEY="YOUR_ACCESS_KEY"
-export LT_TUNNEL="YOUR_TUNNEL_NAME"
-```
-
-**Windows:**
-
-```bash
-set LT_USERNAME="YOUR_USERNAME"
-set LT_ACCESS_KEY="YOUR_ACCESS_KEY"
-set LT_TUNNEL="YOUR_TUNNEL_NAME"
-```
-
-### Run tests
-
-On Windows:
-
-```bash
-./hyperexecute --config yaml/win/testng_hyperexecute_autosplit_sample.yaml --force-clean-artifacts --download-artifacts
-```
-
-On Linux:
-
-```bash
-./hyperexecute --config yaml/linux/testng_hyperexecute_autosplit_sample.yaml --force-clean-artifacts --download-artifacts
-```
-
-View results on your TestMu AI dashboard.
-
-### Local testing with TestMu AI Tunnel
-
-To test locally hosted apps, set up the TestMu AI tunnel. OS-specific guides:
-
-- [Local Testing on Windows](https://www.testmuai.com/support/docs/local-testing-for-windows/)
-- [Local Testing on macOS](https://www.testmuai.com/support/docs/local-testing-for-macos/)
-- [Local Testing on Linux](https://www.testmuai.com/support/docs/local-testing-for-linux/)
-
-Add the following to your capabilities:
-
+2. **`env: TOKEN: anvdegtod-asdaasda0asda-asda` — invalid YAML syntax.** A nested key can't be written on the same line as its parent. Fixed by properly nesting it:
 ```yaml
-tunnel: true
+   env:
+     TOKEN: anvdegtod-asdaasda0asda-asda
 ```
 
-## Contributions
+3. **`testDiscovery` children not indented.** `type`, `mode`, and `command` were at the same indentation level as `testDiscovery:` itself, so YAML parsed them as unrelated top-level keys instead of children of `testDiscovery`. Fixed by indenting them 2 spaces under `testDiscovery:`.
 
-Contributions are welcome. Open an issue to discuss your idea before submitting a pull request. When reporting bugs, include your Java version, OS, and TestNG version.
+4. **`mode: dynamic` → `mode: remote`.** The working reference uses `remote`; `dynamic` isn't a valid mode value in HyperExecute's `testDiscovery` schema.
 
-## TestMu AI (Formerly LambdaTest) Community
+5. **Missing Maven flag in the `pre` step.** Broken: `mvn dependency:resolve`. Fixed: `mvn -Dmaven.repo.local=./.m2 dependency:resolve`. Without this flag, dependencies resolved to Maven's default cache location, but `testRunnerCommand` later expects them at `./.m2` specifically — a path mismatch that would cause the test run to fail finding dependencies.
 
-Connect with testers and developers in the [TestMu AI Community](https://community.testmuai.com/). Ask questions, share what you are building, and discuss best practices in test automation and DevOps.
-  
-## TestMu AI (Formerly LambdaTest) Certifications
+6. **Missing `runtime` block.** The broken YAML had no `runtime` specification at all. I discovered this the hard way — my first "fixed" run failed on the cloud with a Java compile error (`invalid target release: 11`), and I reproduced the exact same error locally once I set up Maven, which confirmed the remote VM was defaulting to an incompatible JDK version. Adding:
+```yaml
+   runtime:
+     language: java
+     version: 11
+```
+   resolved it on both local and cloud runs.
 
-Earn free [TestMu AI Certifications](https://www.testmuai.com/certifications/) for testers, developers, and QA engineers. Validate your skills in Selenium, Cypress, Playwright, Appium, Espresso and more. Industry-recognized, shareable on LinkedIn, and built by practitioners, not marketers.
+**Deliberately left unchanged (verified, not a bug):** the `testRunnerCommand` line (`` mvn test `-Dplatname=win `-Dmaven.repo.local=./.m2 dependency:resolve `-DselectedTests=$test ``) looks unusual, but it's identical to LambdaTest's own working sample. I confirmed `-Dplatname=win` is a real, necessary property — when I ran a plain `mvn test` locally without it, I got `testng_${platname}.xml is not a valid file`, proving this flag is required, not a typo.
 
-## Learning Resources by TestMu AI (Formerly LambdaTest)
+**Result:** job ran successfully, 100% pass across discovery/pre/test stages, 0 failed tasks.
+Job link: `[paste your successful job link here]`
 
-Learn modern testing through tutorials, guides, videos, and weekly updates:
+---
 
-* [TestMu AI Blog](https://www.testmuai.com/blog/)
-* [TestMu AI Learning Hub](https://www.testmuai.com/learning-hub/)
-* [TestMu AI on YouTube](https://www.youtube.com/@TestMuAI)
-* [TestMu AI Newsletter](https://www.testmuai.com/newsletter/)
-  
-## LambdaTest is Now TestMu AI
+## Task 2: Environment Variables
 
-On **January 12, 2026**, [LambdaTest evolved to TestMu AI](https://www.testmuai.com/lambdatest-is-now-testmuai/), the world's first fully autonomous **Agentic AI Quality Engineering Platform**.
+Added a custom env var to the fixed YAML:
+```yaml
+env:
+  TOKEN: anvdegtod-asdaasda0asda-asda
+  ENVIRONMENT: staging
+```
 
-Same team. Same infrastructure. Same customer accounts. All existing LambdaTest logins, scripts, capabilities, and integrations continue to work without change.
+Printed it in the `pre` step:
+```yaml
+pre:
+  - mvn -Dmaven.repo.local=./.m2 dependency:resolve
+  - echo $env:ENVIRONMENT
+```
 
-👉 Find the new home for [LambdaTest](https://www.testmuai.com).
+Read it inside a test case (`src/test/java/Test1.java`):
+```java
+public static String environment = System.getenv("ENVIRONMENT");
+...
+System.out.println("ENVIRONMENT value from test: " + environment);
+```
 
-### How LambdaTest Evolved into TestMu AI
+**Result:** value printed successfully in both the pre-step logs and the test execution logs — see screenshots.
 
-In 2017, we launched LambdaTest with a simple mission: make testing fast, reliable, and accessible. As LambdaTest grew, we expanded into Test Intelligence, Visual Regression Testing, Accessibility Testing, API Testing, and Performance Testing, covering the full depth of the testing lifecycle.
+---
 
-As software development entered the AI era, testing had to evolve, too. We rebuilt the architecture to be AI-native from the ground up, with autonomous agents that **plan, author, execute, analyze, and optimize tests** while keeping humans in the loop. The platform integrates with your repos, CI, IDEs, and terminals, continuously learning from every code change and development signal.
+## Task 3: Forced Failure + Retry
 
-That evolution earned a new name: **TestMu AI**, built for an AI-first future of quality engineering. TestMu is not a new name for us. It is the name of our annual community conference, which has brought together 100,000+ quality engineers to discuss how AI would reshape testing, long before that became an industry norm. 
+Added an intentionally failing test to `Test1.java`:
+```java
+@Test(description = "Intentional failure to verify retry behavior")
+public void test1_intentional_failure() {
+    Assert.fail("Intentional failure to verify retry behavior");
+}
+```
 
-What started as a high-performance cloud testing platform has transformed into an AI-native, multi-agent system powering a connected, end-to-end quality layer. That evolution defined a new identity: LambdaTest evolved into TestMu AI, built for an AI-first future of quality engineering.
+Retry config (already present from Task 1's fix):
+```yaml
+retryOnFailure: true
+maxRetries: 1
+```
 
-## Support
+**Result:** confirmed from job logs that `Test_1` was attempted twice — the original run plus one retry — both failing as expected, since the assertion fails unconditionally. See screenshot/logs.
 
-Got a question? Email [support@testmuai.com](mailto:support@testmuai.com) or chat with us 24x7 from our chat portal.
+---
+
+## Task 4: Linux/Unix Basics
+
+Ran via Git Bash (Windows doesn't natively support grep/awk/sed in PowerShell).
+
+**grep** — find lines containing FAIL or ERROR:
+```bash
+grep -E "FAIL|ERROR" sample.log
+```
+Searches for lines matching "FAIL" or "ERROR"; `-E` enables extended regex so `|` works as "or."
+
+**awk** — print the 2nd column:
+```bash
+awk '{print $2}' sample.log
+```
+Splits each line by whitespace and prints the second field.
+
+**sed** — find-and-replace:
+```bash
+sed 's/staging/production/g' sample2.txt
+```
+Replaces every occurrence of "staging" with "production" on each line.
+
+**Chained with a pipe:**
+```bash
+grep "FAIL" sample.log | awk '{print $2}'
+```
+Filters to lines containing "FAIL," then extracts just the 2nd column from those filtered results — a realistic "find the failing tests, then get just their names" use case.
+
+Sample input/output included in `/screenshots` folder.
+
+---
+
+Screenshots documenting successful job runs, log output, and evidence for each task are included in as Task 1, Task 2, Task 3, Task 4 -1, Task 4 -2 in this repo. Please refer to these alongside the notes above for visual confirmation of each result
+
+## Environment notes
+- OS: Windows 11
+- Java: Temurin 17.0.20
+- Maven: 3.9.16
+- Unix tools (Task 4): run via Git Bash
