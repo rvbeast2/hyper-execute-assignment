@@ -3,6 +3,7 @@
 ## Task 1: Fixed the broken YAML
 
 I compared the broken YAML against LambdaTest's own working reference file in the sample repo (`yaml/win/v1/testng_hyperexecute_autosplit_sample.yaml`) to confirm each fix against a known-correct baseline rather than guessing.
+And Created a yaml file which has the fixes (fixed.yaml)
 
 **Bugs found:**
 
